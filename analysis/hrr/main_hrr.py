@@ -34,6 +34,6 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
         HRR[test_name].loc[:, "testing_time"] = HRR[test_name].loc[:, "testing_time"] * 60
 
 # save all the external HRR data as a pickle in processed data
-file_address_save = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/HRR_external.pkl"
+file_address_save = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/HRR_total.pkl"
 with open(file_address_save, 'wb') as handle:
     pickle.dump(HRR, handle)
