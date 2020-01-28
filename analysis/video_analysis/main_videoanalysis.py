@@ -3,6 +3,7 @@ Main video analysis.
 Calculates flame height and depth from the videos (converted to one image per frame)
 
 image = np.array(:,:,3) --> image(depth_dimension, height_dimension, RGB)
+Saves it in this same folder as un-smoothed data
 """
 
 import cv2
@@ -19,7 +20,7 @@ from contourplot_createANDsave import createANDsave_plot
 
 # initialize variables
 experiments = ["Alpha2", "Beta1", "Beta2", "Gamma"]
-threshold_value = [180, 180, 180]
+threshold_value = [180, 180, 180, 180]
 door_height = 2.15
 
 # only analyse one out of every 5 frames to decrease the computational cost
@@ -57,6 +58,10 @@ for i, experiment in enumerate(experiments):
         
         # don't do anything before flashover
         if frame < data["start_externalflaming"] * effective_fps:
+            continue
+        
+        # don't do anything for Beta1 after flameout (it doesn't re-ignite) - 21 minutes
+        if experiment == "Beta1" and frame > 6300:
             continue
         
         # show the frame under analysis
@@ -147,7 +152,7 @@ for i, experiment in enumerate(experiments):
     Flame_Dimensions[experiment] = df
         
         
-file_address_save = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/Flame_Dimensions.pkl"
+file_address_save = "Flame_Dimensions_unsmoothed.pkl"
 with open(file_address_save, 'wb') as handle:
     pickle.dump(Flame_Dimensions, handle)
     
