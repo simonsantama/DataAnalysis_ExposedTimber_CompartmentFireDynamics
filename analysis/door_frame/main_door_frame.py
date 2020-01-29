@@ -4,28 +4,52 @@ mass flow, neutral plane height and internal HRR.
 
 """
 
-import pandas as pd
 import pickle
+
+# import my own functions
+from calculation_massflow import calculation_area, calculation_velocity, calculation_massflow
 
 DoorFrame = {}
 
+# store velocitie, mass flow and internal HRR separetely
+Velocities = {}
+MassFlow = {}
+HRR_internal = {}
+
+
+# upload the data from the excel spreadsheets
+file_address = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/unprocessed_data/door_frame/DoorFrame_unprocessed.pkl"
+with open(file_address, "rb") as handle:
+    DoorFrame = pickle.load(handle)
 
 # iterate over the four tests to be analysed
 for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
+
+    df = DoorFrame[test_name]
+    df.rename(columns = {"Time [min]": "testing_time"}, inplace = True)
+    df_juanalyser = df.loc[:, df.columns[23:]].copy()
+    df.drop(columns = df.columns[22:], inplace = True)
     
-    # upload the data from the excel spreadsheets
-    file_address = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/unprocessed_data/door_frame/Data_DoorAnalysis_Alltests.xlsx"
+    # modify testing time to show in seconds
+    df.loc[:, "testing_time"] = df.loc[:, "testing_time"]*60
     
-    # upload the raw data from the summary excel file
-    with open(file_address, "rb") as handle:
-        DoorFrame[test_name] = pd.read_excel(file_address, sheet_name = test_name)
-#        
-#    # only retain the columns of interest
-#    TSC[test_name].drop(columns = TSC[test_name].columns[1:-8], inplace = True)
-#    TSC[test_name].rename(columns = {"Elapsed_time": "testing_time"}, inplace = True)
-#    TSC[test_name].loc[:, "testing_time"] = TSC[test_name].loc[:, "testing_time"]*60
-#
-## save all the external HRR data as a pickle in processed data
-#file_address_save = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/TSC.pkl"
-#with open(file_address_save, 'wb') as handle:
-#    pickle.dump(TSC, handle)
+    # calculate areas
+    areas = calculation_area()
+    
+    # calculate velocities
+    calculation_velocity(df)
+    
+    # store the velocity data on it's own dictionary
+    velocity_colums = ["testing_time"]
+    for column in df:
+        if "V_" in column:
+            velocity_colums.append(column)
+    Velocities[test_name] = df.loc[:, velocity_colums]
+    
+    # calculate massflow
+    
+
+# save velocitie, mass flow and internal HRR data
+file_address_save = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/Velocities.pkl"
+with open(file_address_save, 'wb') as handle:
+    pickle.dump(Velocities, handle)
