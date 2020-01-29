@@ -17,7 +17,7 @@ colors = ["royalblue", "darkgreen", "firebrick", "blueviolet", "darkorange", "cy
 
 lw_plots = 2
 lw_grid = 0.75
-linestyles = ["-", "--", "-.", ":"]*2
+linestyles = ["-", "--", "-.", ":"]*3
 
 
 # --- FIGURE 1A. FLAME DIMENSIONS (HEIGHT AND DEPTH)
@@ -292,5 +292,54 @@ ax2.set_yticks([])
 # save and close figure   
 fig.tight_layout()
 fig.savefig("HFvsTime.png", dpi = 600)
+plt.close(fig)
+# ---- FIGURE 3. TSC
+
+# ---------------------------------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------------------- #
+
+# ---- FIGURE 4. Velocities
+data_address = "C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/Velocities.pkl"
+with open(data_address, "rb") as handle:
+    Velocities = pickle.load(handle)
+    
+fig, ax = plt.subplots(4,1,figsize = figsize_fullpage, sharex = True, sharey = True)
+
+# format each subplot
+for i, axis in enumerate(ax):
+    axis.grid(True, color = "gainsboro", linewidth = lw_grid, linestyle = "--")
+    axis.set_ylabel("Velocity [m/s]", fontsize = fontsize_labels)
+    axis.set_ylim([-10,10])
+    axis.set_yticks(np.linspace(-10,10,5))
+    
+    for tick in axis.yaxis.get_major_ticks():
+        tick.label.set_fontsize(fontsize_ticks)
+    for tick in axis.xaxis.get_major_ticks():
+        tick.label.set_fontsize(fontsize_ticks)
+    
+ax[1].set_xlabel("Time [min]", fontsize = fontsize_labels)
+ax[1].set_xlim([0,60])
+ax[1].set_xticks(np.linspace(0,60,7))
+
+# plot
+for i, key in enumerate(Velocities):
+    velocities_data = Velocities[key]
+    
+    # add plot title
+    ax[i].set_title(key, fontsize = fontsize_labels)
+    
+    for j, column in enumerate(velocities_data.columns[1:]):
+        ax[i].plot(velocities_data.loc[:, "testing_time"]/60,
+                velocities_data.loc[:, column],
+                linewidth = lw_plots, 
+                alpha = 0.75,
+                label = column)
+    
+    # add legend
+    ax[i].legend(fancybox = True, fontsize = fontsize_legends - 3, loc = "upper right", ncol = 3)
+
+# save and close figure   
+fig.tight_layout()
+fig.savefig("VelocitiesvsTime.png", dpi = 600)
 plt.close(fig)
 # ---- FIGURE 3. TSC
