@@ -1,11 +1,12 @@
 """
-Functions used to calculate the mass flow at the door from pressure probes and temperature data
+Functions used to calculate velocities mass flow at the door from pressure probes and temperature data
 
 
 """
 
 from scipy.signal import savgol_filter
 import numpy as np
+from scipy import interpolate
 
 def calculation_area(number_of_heights = 9, delta_height = 0.2, door_width = 0.8):
     """
@@ -34,7 +35,7 @@ def calculation_area(number_of_heights = 9, delta_height = 0.2, door_width = 0.8
     return areas
 
 
-def calculation_velocity(df, gamma = 0.94, omega_factor = 2.49, gems_factor = 10, window_length = 21, polyorder = 2):
+def calculation_velocity(df, test_name, gamma = 0.94, omega_factor = 2.49, gems_factor = 10, window_length = 31, polyorder = 2):
     """
     Calculates gas flow velocity from the pressure probe readings
     
@@ -55,7 +56,10 @@ def calculation_velocity(df, gamma = 0.94, omega_factor = 2.49, gems_factor = 10
     window_length: the length of the filter window for the Savitsky-Golay filter
         int
         
-    polyorder: the order of the polynomial used to fit the samples with the Savitsky-Golay filter    
+    polyorder: the order of the polynomial used to fit the samples with the Savitsky-Golay filter
+    
+    test_name: name of the test. Required to perform individualized cleaning of the data
+        str
         
     Returns:
     -------
@@ -65,12 +69,21 @@ def calculation_velocity(df, gamma = 0.94, omega_factor = 2.49, gems_factor = 10
     # create a mask to access values before start test
     mask_prestart = df.loc[:, "testing_time"] < 0
     
+    # fix temperature TDD.40 for Beta2 by interpolating from the other TCs
+    if test_name == "Beta2":
+        
+        # extrapolate to obtain temperature at 04 meters
+        df.loc[:, "TDD.40"] = df.loc[:, ["TDD.60", "TDD.80","TDD.100","TDD.120", "TDD.140", 
+              "TDD.160", "TDD.180"]].apply(
+                    lambda row: extrapolate([60,80,100,120,140, 160, 180], row.values, 40), axis = 1)
+    
     # calculate ambient temperature as mean value of all temperatures before start and assing to h = 20 cm.
     temperature_columns = []
     for column in df:
         if "TDD" in column:
             temperature_columns.append(column)
     temperature_ambient = df.loc[mask_prestart, temperature_columns].mean().mean()
+    
     df["TDD.20"] = temperature_ambient
 
     # calculate mean value reported by the pressure probes before start test
@@ -104,33 +117,100 @@ def calculation_velocity(df, gamma = 0.94, omega_factor = 2.49, gems_factor = 10
         if "DeltaP" in column:
             df.loc[:, f"{column}_smooth"] = savgol_filter(df.loc[:, column],window_length, polyorder)
     
-    # drop all other pressure columns (except for pressure smooth)
-    PP_drop = []
-    for column in df:
-        if ("P." in column) and not ("smooth" in column):
-            PP_drop.append(column)
-    df.drop(columns = PP_drop, inplace = True)
-    
-    # average those probes which are at the same height
-    df.loc[:, "PP_40"] = df.loc[:, ["P2.40_DeltaP_smooth", "P3.40_DeltaP_smooth", "P4.40_DeltaP_smooth"]].mean(axis = 1)
-    df.loc[:, "PP_160"] = df.loc[:, ["P10.160_DeltaP_smooth", "P11.160_DeltaP_smooth", "P12.160_DeltaP_smooth"]].mean(axis = 1)
+    # average those probes 0.4 from the ground
+    if test_name in ["Alpha2", "Beta2", "Gamma"]:
+        df.loc[:, "PP_40"] = df.loc[:, ["P2.40_DeltaP_smooth", "P3.40_DeltaP_smooth", 
+              "P4.40_DeltaP_smooth"]].mean(axis = 1)
+    elif test_name in ["Beta1"]:
+        df.loc[:, "PP_40"] = df.loc[:, ["P2.40_DeltaP_smooth", "P4.40_DeltaP_smooth"]].mean(axis = 1)
+        
+    # average probes 1.6 meters from the ground
+    if test_name in ["Alpha2"]:
+        df.loc[:, "PP_160"] = df.loc[:, ["P12.160_DeltaP_smooth"]].mean(axis = 1)
+    elif test_name in ["Beta1"]:
+        df.loc[:, "PP_160"] = df.loc[:, ["P10.160_DeltaP_smooth"]].mean(axis = 1)
+    elif test_name in ["Beta2"]:
+        df.loc[:, "PP_160"] = df.loc[:, ["P10.160_DeltaP_smooth", "P12.160_DeltaP_smooth"]].mean(axis = 1)
+    elif test_name in ["Gamma"]:
+        df.loc[:, "PP_160"] = df.loc[:, ["P10.160_DeltaP_smooth", "P11.160_DeltaP_smooth",
+              "P12.160_DeltaP_smooth"]].mean(axis = 1)
+        
+    # assing new columns with useful data to their respective heights. 
+    # I do this instead of renaming to preserve all data
+    column_new_name = ["PP_20", "PP_60", "PP_80","PP_100","PP_120","PP_140","PP_180"]
+    for i, column_old_name in enumerate(["P1.20_DeltaP_smooth", "P5.60_DeltaP_smooth", "P6.80_DeltaP_smooth",
+                                         "P7.100_DeltaP_smooth", "P8.120_DeltaP_smooth", "P9.140_DeltaP_smooth",
+                                         "P13.180_DeltaP_smooth"]):
+            df.loc[:, column_new_name[i]] = df.loc[:, column_old_name]
 
-    # rename columns to their respective height
-    df.rename(columns = {"P1.20_DeltaP_smooth": "PP_20", "P5.60_DeltaP_smooth": "PP_60", 
-                        "P6.80_DeltaP_smooth": "PP_80", "P7.100_DeltaP_smooth": "PP_100", 
-                        "P8.120_DeltaP_smooth": "PP_120", "P9.140_DeltaP_smooth": "PP_140", 
-                        "P13.180_DeltaP_smooth": "PP_180"}, inplace = True)
+    # clean up the data for each test by interpolating and extrapolating to substitute damaged data
+    if test_name == "Alpha2":
+        
+        # between 5 min and 15 min, interpolate PP120 and PP140 to clean data
+        mask_interpolation = (df.loc[:, "testing_time"]/60 > 5) & (df.loc[:, "testing_time"]/60 < 15)
+        df.loc[mask_interpolation, "PP_120"] = df.loc[mask_interpolation, ["PP_100", "PP_160"]].apply(
+                lambda row: np.interp(120,[100,160],row.values), axis = 1)
+        df.loc[mask_interpolation, "PP_140"] = df.loc[mask_interpolation, ["PP_100", "PP_160"]].apply(
+                lambda row: np.interp(140,[100,160],row.values), axis = 1)
+        
+        # between 0 and 5 min, then between 12 and 20 and after 40 minutes extrapolate for PP180
+        mask_extrapolation = (((df.loc[:, "testing_time"]/60 > 0) & (df.loc[:, "testing_time"]/60 < 6)) |
+                              ((df.loc[:, "testing_time"]/60 > 12) & (df.loc[:, "testing_time"]/60 < 21))|
+                              (df.loc[:, "testing_time"]/60 > 40))
+        
+        df.loc[mask_extrapolation, "PP_180"] = df.loc[mask_extrapolation, ["PP_100", "PP_120", "PP_140","PP_160"]].apply(lambda row:
+              extrapolate([100,120,140,160], row.values, 180), axis = 1)
+            
+
+    if test_name == "Beta1":
+        
+        # between 10 min and 20 min extrapolate PP_120 and PP_140
+        mask_extrapolation = (df.loc[:, "testing_time"]/60 > 10) & (df.loc[:, "testing_time"]/60 < 20)
+        df.loc[mask_extrapolation, "PP_20"] = df.loc[mask_extrapolation, ["PP_60", "PP_80"]].apply(
+                lambda row: extrapolate([60,80], row.values, 20), axis = 1)
+        df.loc[mask_extrapolation, "PP_40"] = df.loc[mask_extrapolation, ["PP_60", "PP_80"]].apply(
+                lambda row: extrapolate([60,80], row.values, 40), axis = 1)
+        
+        # between 7 min and 11 min interpolate PP_100
+        mask_interpolation = (df.loc[:, "testing_time"]/60 > 7) & (df.loc[:, "testing_time"]/60 < 11)
+        df.loc[mask_interpolation, "PP_100"] = df.loc[mask_interpolation, ["PP_80", "PP_120"]].apply(
+                lambda row: np.interp(100,[80,120],row.values), axis = 1)
+        
+        # between 6 min and 20 min extrapolate PP_160 and PP_180
+        mask_extrapolation = (df.loc[:, "testing_time"]/60 > 6) & (df.loc[:, "testing_time"]/60 < 60)
+        df.loc[mask_extrapolation, "PP_160"] = df.loc[mask_extrapolation, ["PP_20", "PP_40","PP_60", 
+              "PP_80", "PP_100", "PP_120", "PP_140"]].apply(
+                lambda row: extrapolate([20,40,60,80,100,120,140], row.values, 160), axis = 1)
+        df.loc[mask_extrapolation, "PP_180"] = df.loc[mask_extrapolation, ["PP_20", "PP_40","PP_60", 
+              "PP_80", "PP_100", "PP_120", "PP_140", "PP_160"]].apply(
+                lambda row: extrapolate([20,40,60,80,100,120,140, 160], row.values, 180), axis = 1)
+        
+    if test_name == "Beta2":
+        
+        # between 0 min and 15 min extrapolate PP_180
+        mask_extrapolation = (df.loc[:, "testing_time"]/60 > 0) & (df.loc[:, "testing_time"]/60 < 15)
+        df.loc[mask_extrapolation, "PP_180"] = df.loc[mask_extrapolation, ["PP_20", "PP_40","PP_60", 
+              "PP_80", "PP_100", "PP_120", "PP_140", "PP_160"]].apply(
+                lambda row: extrapolate([20,40,60,80,100,120,140, 160], row.values, 180), axis = 1)
+    
+    if test_name == "Gamma":
+        
+        # between 7 min and 16 min interpolate PP_120 and PP_140
+        mask_interpolation = (df.loc[:, "testing_time"]/60 > 7) & (df.loc[:, "testing_time"]/60 < 16)
+        df.loc[mask_interpolation, "PP_120"] = df.loc[mask_interpolation, ["PP_100", "PP_160"]].apply(
+                lambda row: np.interp(120,[100,160],row.values), axis = 1)
+        df.loc[mask_interpolation, "PP_140"] = df.loc[mask_interpolation, ["PP_100", "PP_160"]].apply(
+                lambda row: np.interp(140,[100,160],row.values), axis = 1)
+
     
     # for a given height, if delta p is positive then temperature equals ambient temperature
+    df.loc[:, "TC_20"] = df.loc[:, "TDD.20"]
     for column in df:
         if "PP" in column:
             mask_positives = df.loc[:, column] > 0
             height = column.split("_")[1]
             df.loc[:, f"TC_{height}"] = df.loc[:, f"TDD.{height}"]
             df.loc[mask_positives, f"TC_{height}"] = temperature_ambient
-            
-    # drop the old temperature columns
-    df.drop(columns = [f"TDD.{x}" for x in range(20,200,20)], inplace = True)
     
     # calculate density
     for column in df:
@@ -140,8 +220,8 @@ def calculation_velocity(df, gamma = 0.94, omega_factor = 2.49, gems_factor = 10
     
     # calculate velocities
     for height in range(20,200,20):
-        df.loc[:,f"V_{height}"] = gamma * np.sqrt(2 * np.abs(df.loc[:, f"PP_{height}"]) / 
-               df.loc[:, f"Rho_{height}"])
+        df.loc[:,f"V_{height}"] = gamma * (2 * np.abs(df.loc[:, f"PP_{height}"]) / 
+               df.loc[:, f"Rho_{height}"])**0.5
         
         # np.abs used for calculation but now negative delta P should give a negative (outward) velocity
         mask_negatives = df.loc[:, f"PP_{height}"] < 0
@@ -189,6 +269,35 @@ def calculation_massflow(df, areas, Cd = 0.68):
     df.loc[:, "mass_average"] = df.loc[:, ["mass_in", "mass_out"]].mean(axis = 1)
             
     return None
+
+def extrapolate(x, y, x_ext):
+    """
+    Short definition of function to implement the extrapolation in the data frame
+    
+    Parameters:
+    ----------
+    row: pandas DataFrame containing all the time dependant data
+        np.array
+    
+    x: value at which the extrapolating function should be evaluated
+        float
+    
+    Returns:
+    -------
+    y_ext: f(x). Interpolate value
+        float
+    
+    """
+
+    extrapolating_function = interpolate.interp1d(x = x,
+                                              y = y,
+                                              kind = 'linear',
+                                              fill_value = 'extrapolate')
+    
+    y_ext = extrapolating_function(x_ext)
+    
+    return y_ext
+
 
 def calculation_HRR(df, XO2_0 = 0.2095, alpha = 1.105, E_02 = 13.1, ECO_CO2 = 17.6, E_CO2 = 13.3, 
                     E_CO = 12.3, M_a = 29, M_O2 = 32, M_CO2 = 44, M_CO = 28):
