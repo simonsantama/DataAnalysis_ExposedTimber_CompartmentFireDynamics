@@ -192,6 +192,12 @@ def calculation_velocity(df, test_name, gamma = 0.94, omega_factor = 2.49, gems_
         df.loc[mask_extrapolation, "PP_180"] = df.loc[mask_extrapolation, ["PP_20", "PP_40","PP_60", 
               "PP_80", "PP_100", "PP_120", "PP_140", "PP_160"]].apply(
                 lambda row: extrapolate([20,40,60,80,100,120,140, 160], row.values, 180), axis = 1)
+            
+        # between 8 min and 10 min interpolate PP_100
+        mask_interpolation = (df.loc[:, "testing_time"]/60 > 8) & (df.loc[:, "testing_time"]/60 < 10)
+        df.loc[mask_interpolation, "PP_100"] = df.loc[mask_interpolation, ["PP_80", "PP_120"]].apply(
+                lambda row: np.interp(100,[80,120],row.values), axis = 1)
+        
     
     if test_name == "Gamma":
         
@@ -227,7 +233,74 @@ def calculation_velocity(df, test_name, gamma = 0.94, omega_factor = 2.49, gems_
         mask_negatives = df.loc[:, f"PP_{height}"] < 0
         df.loc[mask_negatives,f"V_{height}"] = df.loc[mask_negatives,f"V_{height}"] * -1
         
+    # calculate neutral plane by interpolating the velocity values
+    columns_velocity = []
+    for column in df:
+        if "V_" in column:
+            columns_velocity.append(column)
+    heights = np.linspace(0.2,1.8,9)
+    
+    # interpolate the velocities to determine the neutral plane (only doing this for the actual testing time)
+#    df.loc[:, "Neutral_Plane"] = 0
+#    mask = (df.loc[:, "testing_time"] > 0) & (df.loc[:, "testing_time"] < 60)
+
+    df.loc[:, "Neutral_Plane"] = df.loc[:, columns_velocity].apply(lambda row: find_neutral_plane(row, heights), axis = 1)
+        
     return
+
+
+def extrapolate(x, y, x_ext):
+    """
+    Short definition of function to implement the extrapolation in the data frame
+    
+    Parameters:
+    ----------
+    row: pandas DataFrame containing all the time dependant data
+        np.array
+    
+    x: value at which the extrapolating function should be evaluated
+        float
+    
+    Returns:
+    -------
+    y_ext: f(x). Interpolate value
+        float
+    
+    """
+
+    extrapolating_function = interpolate.interp1d(x = x,
+                                              y = y,
+                                              kind = 'linear',
+                                              fill_value = 'extrapolate')
+    
+    y_ext = extrapolating_function(x_ext)
+    
+    return y_ext
+
+def find_neutral_plane(x,y):
+    """
+    Interpolates the velocity profile to find the neutral plane
+    
+    Parameters:
+    ----------
+    x: velocities
+        np.array
+        
+    y: heights
+        np.array
+        
+    Returns:
+    -------
+    neutral_plane: height of the neutral plane
+        float
+    """
+    
+    f = interpolate.interp1d(x,y,kind="linear", fill_value = 'extrapolate')
+    neutral_plane = f(0)
+
+    return neutral_plane
+    
+    
 
 def calculation_massflow(df, areas, Cd = 0.68):
     """
@@ -270,40 +343,55 @@ def calculation_massflow(df, areas, Cd = 0.68):
             
     return None
 
-def extrapolate(x, y, x_ext):
+
+def calculation_HRR(df, df_mass, alpha = 1.105, 
+                    XO2_0 = 0.2095, XCO2_0 = 0.0004 ,E_02 = 13100, ECO_CO2 = 17600,
+                    M_a = 29, M_O2 = 32, M_CO2 = 44, M_CO = 28,
+                    window_length = 31, polyorder = 2):
     """
-    Short definition of function to implement the extrapolation in the data frame
+    Calculates the HRR from Oxygen Calorimetry using the mass flow calculated above and the 
+    gas analysis results from the Juanalyser
     
     Parameters:
     ----------
-    row: pandas DataFrame containing all the time dependant data
-        np.array
     
-    x: value at which the extrapolating function should be evaluated
-        float
+    
     
     Returns:
     -------
-    y_ext: f(x). Interpolate value
-        float
+    None
+    
     
     """
+    # interpolate the data from df_massloss to calculate the HRR. This is because this was logged with a different
+    # datalogger and so it has a different time stamp
+    mass_interpolating_function = interpolate.interp1d(x = df_mass.loc[:, "testing_time"],
+                                                           y = df_mass.loc[:, "mass_average"],
+                                                           kind = 'linear',
+                                                           fill_value = 'extrapolate')
+    
+    df.loc[:, "mass_average"] = mass_interpolating_function(df.loc[:, "testing_time"])
+    
+    # first, smoothe O2, CO and CO2 values
+    for column_name in ["CO2", "CO", "O2"]:
+        df.loc[:, f"{column_name}_smooth"] = savgol_filter(df.loc[:,column_name], window_length, polyorder)
+        
+    # convert from % volume to mole (assumes ideal gas so % volume == % mol)
+    for column_name in ["CO2_smooth", "CO_smooth", "O2_smooth"]:
+        df.loc[:, f"{column_name}_mol"] = df.loc[:, column_name]/100
+        
+    # calculate oxygen depletion factor
+    XO2 = df.loc[:, "O2_smooth_mol"]
+    XCO = df.loc[:, "CO_smooth_mol"]
+    XCO2 = df.loc[:, "CO2_smooth_mol"]
+    
+    df.loc[:, "oxygen_depletion_factor"] = (XO2_0 * (1 - XCO2 - XCO) - XO2 * (1 - XCO2_0)) / (XO2_0 * (1 - XO2 - XCO2 - XCO))
+    
+    # calculate the HRR
+    O2_dep_fac = df.loc[:, "oxygen_depletion_factor"]
+    me = df.loc[:, "mass_average"]
+    
+    df.loc[:, "hrr_internal"] = (E_02 * O2_dep_fac - ((ECO_CO2 - E_02)*((1 - O2_dep_fac)/2) * (XCO/XO2))) * (
+            (me/(1 + O2_dep_fac*(alpha - 1)))*(M_O2/M_a)*XO2_0)
 
-    extrapolating_function = interpolate.interp1d(x = x,
-                                              y = y,
-                                              kind = 'linear',
-                                              fill_value = 'extrapolate')
-    
-    y_ext = extrapolating_function(x_ext)
-    
-    return y_ext
-
-
-def calculation_HRR(df, XO2_0 = 0.2095, alpha = 1.105, E_02 = 13.1, ECO_CO2 = 17.6, E_CO2 = 13.3, 
-                    E_CO = 12.3, M_a = 29, M_O2 = 32, M_CO2 = 44, M_CO = 28):
-    """
-    Calculates the HRR from the a
-    
-    """
-    
-    return None
+    return

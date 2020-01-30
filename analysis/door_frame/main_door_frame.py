@@ -9,11 +9,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # import my own functions
-from calculation_massflow import calculation_area, calculation_velocity, calculation_massflow
+from calculation_massflow import calculation_area, calculation_velocity, calculation_massflow, calculation_HRR
 
 DoorFrame = {}
 DoorFrame_full = {}
 
+# dictionaries used to save the data separately in the data processed folder
+Velocities = {}
+Neutral_Plane = {}
+Mass_Flow = {}    
+HRR_internal = {}
 
 # upload the data from the excel spreadsheets
 file_address = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/unprocessed_data/door_frame/DoorFrame_unprocessed.pkl"
@@ -26,7 +31,7 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
     # extract the data and divide into temperature/pressure_probe and gas analysis
     df_full = DoorFrame[test_name]
     df = df_full.iloc[:, :22].copy()
-    df_juanalyser = df_full.iloc[:, 23:].copy()
+    
     
     # start with analysis of temperature/pressure_probe data
     df.rename(columns = {"Time [min]": "testing_time"}, inplace = True)
@@ -41,16 +46,48 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
     calculation_velocity(df, test_name)
     
     # calculate massflow
-    
+    calculation_massflow(df, areas)
     
     # store in DoorFrame_full for plotting below
     DoorFrame_full[test_name] = df
     
+    # save data into independent dictionaries
+    v_columns = [col for col in df.columns if "V_" in col]
+    m_columns = [col for col in df.columns if "mass_" in col]
+    for lst in [v_columns, m_columns]:
+        lst.append("testing_time")
+    np_columns = ["testing_time", "Neutral_Plane"]
+    
+    Velocities[test_name] = df.loc[:, v_columns]
+    Mass_Flow[test_name] = df.loc[:, m_columns]
+    Neutral_Plane[test_name] = df.loc[:, np_columns]
+    
+    # Heat Release Rate calculations
+    df_juanalyser = df_full.iloc[:, 23:].copy()
+    df_juanalyser.rename(columns = {"Time": "testing_time"}, inplace = True)
+    df_juanalyser.loc[:, "testing_time"] = df_juanalyser.loc[:, "testing_time"]*60
+    
+    # the ignition delay was not added to the spreadsheets for Beta1 and Beta2, So I am adding it manually.
+    if test_name == "Beta1":
+        df_juanalyser.loc[:, "testing_time"] = df_juanalyser.loc[:, "testing_time"] - 4*60
+    if test_name == "Beta2":
+        df_juanalyser.loc[:, "testing_time"] = df_juanalyser.loc[:, "testing_time"] - 18*60
+    
+    calculation_HRR(df_juanalyser, df)
+    
+    # save internal HRR data into independent dictionary
+    HRR_internal[test_name] = df_juanalyser.loc[:, ["testing_time","hrr_internal"]]
+    
+# save velocities, neutral plane, mass flow and internal HRR to the processed data folder
+data_to_save = [Velocities, Neutral_Plane, Mass_Flow, HRR_internal]
 
-# save velocitie, mass flow and internal HRR data
-#file_address_save = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/Velocities.pkl"
-#with open(file_address_save, 'wb') as handle:
-#    pickle.dump(Velocities, handle)
+for i, data_type in enumerate(data_to_save):
+    
+    data_name = ["Velocities", "Neutral_Plane", "Mass_Flow", "HRR_internal"][i]
+    file_address_save = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/{data_name}.pkl"
+    
+    with open(file_address_save, 'wb') as handle:
+        pickle.dump(data_type, handle)
     
 # Plotting of the raw data to evaluate the algorithm and identify any broken sensors
 test_name = ["Alpha2", 
@@ -64,7 +101,9 @@ y_labels = ["Temperature [$^\circ$C]",
             "DeltaP [Pa]",
             "Temperature [$^\circ$C]",
             "Density [kg/m$^3$]",
-            "Velocity [m/s]"]
+            "Velocity [m/s]",
+            "Neutral Plane [m]",
+            "Mass Flow [kg/s]"]
 y_limits = ([0,1200],
             [0,15],
             [-5,5],
@@ -72,7 +111,9 @@ y_limits = ([0,1200],
             [-20,20],
             [0,1200],
             [0, 1.5],
-            [-15,5])
+            [-15,5],
+            [0,2],
+            [0,1.5])
 column_numbers = ([1,9],
                   [10,23],
                   [23,36],
@@ -80,13 +121,15 @@ column_numbers = ([1,9],
                   [62,71],
                   [71,80],
                   [80,89],
-                  [89,98])
+                  [89,98],
+                  [98, 99],
+                  [108,111])
 
 # iterate over all the parameters we wish to plot
 fontsize_legend = 6
 for j, parameter in enumerate(["Raw_Temperatures", "Raw_PressureProbes", "Zeroed_PressureProbes",
                                "DeltaPressure_Smooth", "DeltaPressure_Smooth_Clean", "Temperatures_Processed",
-                               "Density", "Velocity"]):    
+                               "Density", "Velocity", "Neutral Plane", "Mass Flow"]):    
 
     fig, ax = plt.subplots(4,1,figsize = (8,11), sharex = True)
     fig.suptitle(parameter)
