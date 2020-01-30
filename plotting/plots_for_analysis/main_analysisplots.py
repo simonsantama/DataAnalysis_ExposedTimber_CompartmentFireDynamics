@@ -176,6 +176,10 @@ data_address = "C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/proce
 with open(data_address, "rb") as handle:
     HRR_total = pickle.load(handle)
     
+data_address = "C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/HRR_internal.pkl"
+with open(data_address, "rb") as handle:
+    HRR_internal = pickle.load(handle)
+    
 fig, ax = plt.subplots(4,1,figsize = figsize_fullpage, sharex = True, sharey = True)
 
 # format each subplot
@@ -196,16 +200,26 @@ ax[3].set_xticks(np.linspace(0,60,7))
 
 # plot
 for i, key in enumerate(HRR_total):
-    hrr_data = HRR_total[key]
+    hrr_total = HRR_total[key]
+    hrr_internal = HRR_internal[key]
     
     ax[i].set_title(key, fontsize = fontsize_labels)
-    ax[i].plot(hrr_data.loc[:, "testing_time"]/60,
-            hrr_data.loc[:, f"THRR"]/1000,
+    
+    ax[i].plot(hrr_total.loc[:, "testing_time"]/60,
+            hrr_total.loc[:, "THRR"]/1000,
             linewidth = lw_plots, 
             color = colors[0],
             linestyle = linestyles[0],
             alpha = 0.75,
             label = "Total HRR")
+    
+    ax[i].plot(hrr_internal.loc[:, "testing_time"]/60,
+            hrr_internal.loc[:, "hrr_internal"]/1000,
+            linewidth = lw_plots, 
+            color = colors[1],
+            linestyle = linestyles[1],
+            alpha = 0.75,
+            label = "Internal HRR")
 
     # add legends
     ax[i].legend(fancybox = True, fontsize = fontsize_legends, loc = "upper right")
@@ -342,4 +356,50 @@ for i, key in enumerate(Velocities):
 fig.tight_layout()
 fig.savefig("VelocitiesvsTime.png", dpi = 600)
 plt.close(fig)
-# ---- FIGURE 3. TSC
+# ---- FIGURE 4. Velocities
+
+
+# ---------------------------------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------------------- #
+
+# ---- FIGURE 4. Neutral Plane
+data_address = "C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/Neutral_Plane.pkl"
+with open(data_address, "rb") as handle:
+    Neutral_Plane= pickle.load(handle)
+    
+fig, ax = plt.subplots(4,1,figsize = figsize_fullpage, sharex = True, sharey = True)
+#
+# format each subplot
+for i, axis in enumerate(ax):
+    axis.grid(True, color = "gainsboro", linewidth = lw_grid, linestyle = "--")
+    axis.set_ylabel("Neutral Plane [m]", fontsize = fontsize_labels)
+    axis.set_ylim([0,2])
+    axis.set_yticks(np.linspace(0,2,5))
+    
+    for tick in axis.yaxis.get_major_ticks():
+        tick.label.set_fontsize(fontsize_ticks)
+    for tick in axis.xaxis.get_major_ticks():
+        tick.label.set_fontsize(fontsize_ticks)
+    
+ax[1].set_xlabel("Time [min]", fontsize = fontsize_labels)
+ax[1].set_xlim([0,60])
+ax[1].set_xticks(np.linspace(0,60,7))
+
+# plot
+for i, key in enumerate(Velocities):
+    np_data = Neutral_Plane[key]
+    
+    # add plot title
+    ax[i].set_title(key, fontsize = fontsize_labels)
+    
+    for j, column in enumerate(np_data.columns[1:]):
+        ax[i].plot(np_data.loc[:, "testing_time"]/60,
+                np_data.loc[:, column],
+                linewidth = lw_plots, 
+                alpha = 0.75)
+
+# save and close figure   
+fig.tight_layout()
+fig.savefig("NeutralPlanevsTime.png", dpi = 600)
+plt.close(fig)
+# ---- FIGURE 4. Neutral Plane
