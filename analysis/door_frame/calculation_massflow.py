@@ -239,13 +239,10 @@ def calculation_velocity(df, test_name, gamma = 0.94, omega_factor = 2.49, gems_
         if "V_" in column:
             columns_velocity.append(column)
     heights = np.linspace(0.2,1.8,9)
-    
-    # interpolate the velocities to determine the neutral plane (only doing this for the actual testing time)
-#    df.loc[:, "Neutral_Plane"] = 0
-#    mask = (df.loc[:, "testing_time"] > 0) & (df.loc[:, "testing_time"] < 60)
 
     df.loc[:, "Neutral_Plane"] = df.loc[:, columns_velocity].apply(lambda row: find_neutral_plane(row, heights), axis = 1)
-        
+    df.loc[:, "Neutral_Plane_Smooth"] = df.loc[:,"Neutral_Plane"].rolling(30).mean()
+    
     return
 
 
@@ -295,7 +292,23 @@ def find_neutral_plane(x,y):
         float
     """
     
-    f = interpolate.interp1d(x,y,kind="linear", fill_value = 'extrapolate')
+    # create a set of tuples that contains the velocity and their respective height
+    pos = (0,0)
+    neg = (0,0)
+    
+    # determine the height of the last positive velocity and the first negative velocity
+    for i,vel in enumerate(x.values):
+        if vel < 0:
+            if i != 0:
+                neg = (vel, y[i])
+                pos = (x.values[i-1], y[i-1])
+                break
+    
+    # interpolate 
+    f = interpolate.interp1d(x = [pos[0], neg[0]], y = [pos[1], neg[1]],
+                             kind="linear", fill_value = 'extrapolate')
+    
+    # evaluate the interpolating function to find the velocity
     neutral_plane = f(0)
 
     return neutral_plane
@@ -340,8 +353,11 @@ def calculation_massflow(df, areas, Cd = 0.68):
         df.loc[index, "mass_in"] = positives
         df.loc[index, "mass_out"] = negatives
     df.loc[:, "mass_average"] = df.loc[:, ["mass_in", "mass_out"]].mean(axis = 1)
+    
+    # calculate HRR assuming all O2 in gets oxydised (I later use the juanalyser as well to run a different HRR calc)
+    df.loc[:, "hrr_internal_allmassin"] = 0.233 * df.loc[:, "mass_in"] * 13100
             
-    return None
+    return
 
 
 def calculation_HRR(df, df_mass, alpha = 1.105, 

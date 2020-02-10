@@ -17,8 +17,9 @@ DoorFrame_full = {}
 # dictionaries used to save the data separately in the data processed folder
 Velocities = {}
 Neutral_Plane = {}
-Mass_Flow = {}    
-HRR_internal = {}
+Mass_Flow = {}
+HRR_internal_massin = {}    
+HRR_internal_juanalyser = {}
 
 # upload the data from the excel spreadsheets
 file_address = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/unprocessed_data/door_frame/DoorFrame_unprocessed.pkl"
@@ -27,6 +28,8 @@ with open(file_address, "rb") as handle:
 
 # iterate over the four tests to be analysed
 for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
+    
+    print(f"Analysing experiment {test_name}")
     
     # extract the data and divide into temperature/pressure_probe and gas analysis
     df_full = DoorFrame[test_name]
@@ -56,11 +59,13 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
     m_columns = [col for col in df.columns if "mass_" in col]
     for lst in [v_columns, m_columns]:
         lst.append("testing_time")
-    np_columns = ["testing_time", "Neutral_Plane"]
+    np_columns = ["testing_time", "Neutral_Plane", "Neutral_Plane_Smooth"]
+    hrr_massin_columns = ["testing_time", "hrr_internal_allmassin"]
     
     Velocities[test_name] = df.loc[:, v_columns]
     Mass_Flow[test_name] = df.loc[:, m_columns]
     Neutral_Plane[test_name] = df.loc[:, np_columns]
+    HRR_internal_massin[test_name] = df.loc[:, hrr_massin_columns]
     
     # Heat Release Rate calculations
     df_juanalyser = df_full.iloc[:, 23:].copy()
@@ -76,14 +81,14 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
     calculation_HRR(df_juanalyser, df)
     
     # save internal HRR data into independent dictionary
-    HRR_internal[test_name] = df_juanalyser.loc[:, ["testing_time","hrr_internal"]]
+    HRR_internal_juanalyser[test_name] = df_juanalyser.loc[:, ["testing_time","hrr_internal"]]
     
 # save velocities, neutral plane, mass flow and internal HRR to the processed data folder
-data_to_save = [Velocities, Neutral_Plane, Mass_Flow, HRR_internal]
+data_to_save = [Velocities, Neutral_Plane, Mass_Flow, HRR_internal_massin, HRR_internal_juanalyser]
 
 for i, data_type in enumerate(data_to_save):
     
-    data_name = ["Velocities", "Neutral_Plane", "Mass_Flow", "HRR_internal"][i]
+    data_name = ["Velocities", "Neutral_Plane", "Mass_Flow", "HRR_internal_massin", "HRR_internal_juanalyser"][i]
     file_address_save = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/{data_name}.pkl"
     
     with open(file_address_save, 'wb') as handle:
@@ -103,6 +108,7 @@ y_labels = ["Temperature [$^\circ$C]",
             "Density [kg/m$^3$]",
             "Velocity [m/s]",
             "Neutral Plane [m]",
+            "Neutral Plane Smooth [m]",
             "Mass Flow [kg/s]"]
 y_limits = ([0,1200],
             [0,15],
@@ -112,6 +118,7 @@ y_limits = ([0,1200],
             [0,1200],
             [0, 1.5],
             [-15,5],
+            [0,2],
             [0,2],
             [0,1.5])
 column_numbers = ([1,9],
@@ -123,13 +130,14 @@ column_numbers = ([1,9],
                   [80,89],
                   [89,98],
                   [98, 99],
-                  [108,111])
+                  [99,100],
+                  [109,112])
 
 # iterate over all the parameters we wish to plot
 fontsize_legend = 6
 for j, parameter in enumerate(["Raw_Temperatures", "Raw_PressureProbes", "Zeroed_PressureProbes",
                                "DeltaPressure_Smooth", "DeltaPressure_Smooth_Clean", "Temperatures_Processed",
-                               "Density", "Velocity", "Neutral Plane", "Mass Flow"]):    
+                               "Density", "Velocity", "Neutral Plane", "Neutral_Plane_Smooth", "Mass Flow"]):    
 
     fig, ax = plt.subplots(4,1,figsize = (8,11), sharex = True)
     fig.suptitle(parameter)
