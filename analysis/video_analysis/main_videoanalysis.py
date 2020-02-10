@@ -45,17 +45,14 @@ for i, experiment in enumerate(experiments):
     flame_projection = np.zeros_like(flame_height_top)
     flame_area = np.zeros_like(flame_height_top)
     
-    # ---- 
-    # all variables commented out since we decided to only keep flame heights and flame projection
-#    flame_depth_below = np.zeros_like(flame_height_top)
-#    flame_depth_above = np.zeros_like(flame_height_top)
-#    flame_depth_topdoor = np.zeros_like(flame_height_top)
-#    flame_depth_above = np.zeros_like(flame_height_top)
-#    flame_characteristic_length = np.zeros_like(flame_height_top)
-#    flame_perimeter = np.zeros_like(flame_height_top)
-#    flame_ellipse_length = np.zeros_like(flame_height_top)
-#    flame_ellipse_angle = np.zeros_like(flame_height_top)
-    # ----
+    flame_depth_below = np.zeros_like(flame_height_top)
+    flame_depth_above = np.zeros_like(flame_height_top)
+    flame_depth_topdoor = np.zeros_like(flame_height_top)
+    flame_depth_above = np.zeros_like(flame_height_top)
+    flame_characteristic_length = np.zeros_like(flame_height_top)
+    flame_perimeter = np.zeros_like(flame_height_top)
+    flame_ellipse_length = np.zeros_like(flame_height_top)
+    flame_ellipse_angle = np.zeros_like(flame_height_top)
     
     # iterate over every frame
     for frame_name in os.listdir(f"{experiment}_frames/"):
@@ -73,10 +70,10 @@ for i, experiment in enumerate(experiments):
         print(frame)
         
         # ---- for debugging
-        # if frame < 3000:
-        # continue
-        # if frame > 5000:
-        # break
+#        if frame < 3000:
+#            continue
+#        if frame > 5000:
+#            break
         # ----
         
         # load image
@@ -93,44 +90,29 @@ for i, experiment in enumerate(experiments):
         try:
             # if contours are found, then the flame is the largest contour detected
             flame_area[frame] = cv2.contourArea(contours[0]) * pixel_to_meters**2
-            # ---
-#            flame_perimeter[frame] = cv2.arcLength(contours[0], True) * pixel_to_meters
-#            flame_characteristic_length[frame] = flame_area[frame] / flame_perimeter[frame]
-            # ---
+            flame_perimeter[frame] = cv2.arcLength(contours[0], True) * pixel_to_meters
+            flame_characteristic_length[frame] = flame_area[frame] / flame_perimeter[frame]
             flame = contours[0]
             flame_contours.append(flame)
             
-            # ---
             # retrieve ellipse major axis and angle
-#            ellipse = cv2.fitEllipse(flame)
-#            ellipse_majoraxis = ellipse[1][0]
-#            flame_ellipse_length[frame] = ellipse_majoraxis * pixel_to_meters
-#            flame_ellipse_angle[frame] = ellipse[2]
-            # ---5
+            ellipse = cv2.fitEllipse(flame)
+            ellipse_majoraxis = ellipse[1][0]
+            flame_ellipse_length[frame] = ellipse_majoraxis * pixel_to_meters
+            flame_ellipse_angle[frame] = ellipse[2]
             
-            # ---
-            # calculate flame height and depth
-#            height_top, height_bottom, depth_below, depth_topdoor, depth_above = heightANDdepth(flame, pixel_to_meters,
-#                                                                                                data, roi)
-            # ---
+            # calculate flame height, flame projection and flame depth
+            height_top, height_bottom, projection, depth_below, depth_topdoor, depth_above = heightANDdepth(
+                    flame, pixel_to_meters, data, roi)
             
-            # calculate flame height and depth
-            height_top, height_bottom, projection = heightANDdepth(flame, pixel_to_meters,
-                                                                                    data, roi)
             
-            # ---
-#            # for Alpha2 (angle of the camera) and Gamma (frame) I removed the door from the analysis, so I need to
-#            # include it into the depth calculation
-#            if experiment == "Alpha2" or experiment == "Gamma":
-#                depth_below += data["door_depth"]
-#                depth_topdoor += data["door_depth"]
-#                depth_above += data["door_depth"]
-            # ---
             # for Alpha2 (angle of the camera) and Gamma (frame) I removed the door from the analysis, so I need to
             # include it into the depth calculation
             if experiment == "Alpha2" or experiment == "Gamma":
+                depth_below += data["door_depth"]
+                depth_topdoor += data["door_depth"]
+                depth_above += data["door_depth"]
                 projection -= data["door_depth"]
-            # ---
                 
             # convert all to meters (adding the height that hasn't been analysed img -> roi) and removing the height
             # to the bottom of the door
@@ -141,11 +123,10 @@ for i, experiment in enumerate(experiments):
                 flame_height_top[frame] = (height_top + data["min_y_real"] - data["door_origin"])* pixel_to_meters
                 flame_height_bottom[frame] = (height_bottom + data["min_y_real"] - data["door_origin"]) * pixel_to_meters
                 flame_projection[frame] = (projection)*pixel_to_meters
-            # --- 
-#            flame_depth_below[frame] = depth_below * pixel_to_meters
-#            flame_depth_topdoor[frame] = depth_topdoor * pixel_to_meters
-#            flame_depth_above[frame] =  depth_above * pixel_to_meters
-            # ---
+
+            flame_depth_below[frame] = depth_below * pixel_to_meters
+            flame_depth_topdoor[frame] = depth_topdoor * pixel_to_meters
+            flame_depth_above[frame] =  depth_above * pixel_to_meters
             
         except Exception as e:
             # if no contours are found or an error is raised
@@ -153,15 +134,11 @@ for i, experiment in enumerate(experiments):
             pass
         
         # save every 50th contour as well as flame height and depth (mostly for evaluating the code's performance)
-        # ---
-#        if frame % 50 == 0: 
-#            createANDsave_plot(flame,roi,experiment,frame, image,
-#                               (flame_height_top[frame], flame_height_bottom[frame]), 
-#                               (flame_depth_below[frame], flame_depth_topdoor[frame], flame_depth_above[frame]))
-        # ---
         if frame % 50 == 0: 
             createANDsave_plot(flame,roi,experiment,frame, image,
-                               (flame_height_top[frame], flame_height_bottom[frame]), flame_projection[frame])
+                               (flame_height_top[frame], flame_height_bottom[frame]),
+                               flame_projection[frame],
+                               (flame_depth_below[frame], flame_depth_topdoor[frame], flame_depth_above[frame]))
         
         
     # save the contours separately for each test
@@ -169,20 +146,19 @@ for i, experiment in enumerate(experiments):
         pickle.dump(flame_contours, handle)
         
     # create data frames with the data calculated
-    df = pd.DataFrame(columns = ["testing_time","flame_height_top", "flame_height_bottom", "flame_depth_below", 
-                                 "flame_depth_topdoor","flame_depth_above", "flame_area", "flame_perimeter",
+    df = pd.DataFrame(columns = ["testing_time","flame_height_top", "flame_height_bottom", "flame_projection",
+                                 "flame_depth_below","flame_depth_topdoor","flame_depth_above", 
+                                 "flame_area", "flame_perimeter",
                                  "flame_characteristic_length", "flame_ellipse_length", "flame_ellipse_angle"])
     
     # populate the data frame
     df["testing_time"] = np.linspace(0, data["total_video_duration"], len(flame_height_top))
-    # ---
-#    for j,column in enumerate(df.columns[1:]):
-#        df[column] = [flame_height_top, flame_height_bottom, flame_depth_below, flame_depth_topdoor, flame_depth_above,
-#          flame_area, flame_perimeter, flame_characteristic_length, flame_ellipse_length, flame_ellipse_angle][j]
-    # ---
-    
+
     for j,column in enumerate(df.columns[1:]):
-        df[column] = [flame_height_top, flame_height_bottom, flame_projection,flame_area][j]
+        df[column] = [flame_height_top, flame_height_bottom, flame_projection,
+          flame_depth_below, flame_depth_topdoor, flame_depth_above,
+          flame_area, flame_perimeter, 
+          flame_characteristic_length, flame_ellipse_length, flame_ellipse_angle][j]
 
     # add the data frame to the central dictionary
     Flame_Dimensions[experiment] = df

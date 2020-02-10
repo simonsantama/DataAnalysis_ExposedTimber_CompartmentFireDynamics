@@ -13,7 +13,7 @@ with open(file_address_save, 'rb') as handle:
     Flame_Dimensions = pickle.load(handle)
     
 # define the smoothing parameters
-window_length = 31
+window_length = 61
 polyorder = 2
 
 # smooth the data of each column
