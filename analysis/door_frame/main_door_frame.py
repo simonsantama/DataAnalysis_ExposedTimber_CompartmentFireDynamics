@@ -16,6 +16,7 @@ DoorFrame_full = {}
 
 # dictionaries used to save the data separately in the data processed folder
 Velocities = {}
+Temperatures = {}
 Neutral_Plane = {}
 Mass_Flow = {}
 HRR_internal_massin = {}    
@@ -57,13 +58,15 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
     # save data into independent dictionaries
     v_columns = [col for col in df.columns if "V_" in col]
     m_columns = [col for col in df.columns if "mass_" in col]
-    for lst in [v_columns, m_columns]:
+    t_columns = [col for col in df.columns if "TC_" in col]
+    for lst in [v_columns, m_columns, t_columns]:
         lst.append("testing_time")
     np_columns = ["testing_time", "Neutral_Plane", "Neutral_Plane_Smooth"]
     hrr_massin_columns = ["testing_time", "hrr_internal_allmassin"]
     
     Velocities[test_name] = df.loc[:, v_columns]
     Mass_Flow[test_name] = df.loc[:, m_columns]
+    Temperatures[test_name] = df.loc[:, t_columns]
     Neutral_Plane[test_name] = df.loc[:, np_columns]
     HRR_internal_massin[test_name] = df.loc[:, hrr_massin_columns]
     
@@ -84,11 +87,11 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
     HRR_internal_juanalyser[test_name] = df_juanalyser.loc[:, ["testing_time","hrr_internal"]]
     
 # save velocities, neutral plane, mass flow and internal HRR to the processed data folder
-data_to_save = [Velocities, Neutral_Plane, Mass_Flow, HRR_internal_massin, HRR_internal_juanalyser]
+data_to_save = [Velocities, Neutral_Plane, Mass_Flow, Temperatures, HRR_internal_massin, HRR_internal_juanalyser]
 
 for i, data_type in enumerate(data_to_save):
     
-    data_name = ["Velocities", "Neutral_Plane", "Mass_Flow", "HRR_internal_massin", "HRR_internal_juanalyser"][i]
+    data_name = ["Velocities", "Neutral_Plane", "Mass_Flow", "Door_Temperatures", "HRR_internal_massin", "HRR_internal_juanalyser"][i]
     file_address_save = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/{data_name}.pkl"
     
     with open(file_address_save, 'wb') as handle:
