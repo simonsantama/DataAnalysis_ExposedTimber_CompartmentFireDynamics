@@ -1,22 +1,20 @@
 """
-This script uploads temperatures from each test and distributes them by thermocouple tree.
-
-It also creates plots of the raw temperatures to visualize the data.
-
+This script uploads temperatures from each test.
+It then renames the columns to distribute them by thermocouple tree and stores all the raw data into one picke file.
 """
 
 import pandas as pd
+import numpy as np
 import pickle
+import time
 
 all_raw_data = {}
 
-# plotting parameters
-linestyles = ["-", "--", "-.", ":"]*3
-colors = ["black", "royalblue", "darkgreen", "firebrick", "blueviolet", "darkorange", "cyan"]*2
-
 # iterate over all tests
-for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
+for test_name in ["Alpha1","Alpha2", "Beta1", "Beta2", "Gamma"]:
+    start = time.time()
     
+    print(f"Uploading and parsing data from {test_name}")
     all_raw_data[test_name] = {}
     
     # upload the data from both data loggers
@@ -38,6 +36,8 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
             
     all_raw_data[test_name]["LoggerA"] = df_A
     all_raw_data[test_name]["LoggerB"] = df_B
+    
+    print(f" time taken: {np.round(time.time() - start,2)} seconds")
     
 file_address = "Temperatures_Raw.pkl"
 with open(file_address, "wb") as handle:

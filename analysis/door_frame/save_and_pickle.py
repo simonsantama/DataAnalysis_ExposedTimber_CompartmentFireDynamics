@@ -10,10 +10,10 @@ DoorFrame = {}
 
 
 # iterate over the four tests to be analysed
-for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
+for test_name in ["Alpha1", "Alpha2", "Beta1", "Beta2", "Gamma"]:
     
     # upload the data from the excel spreadsheets
-    file_address = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/unprocessed_data/door_frame/Data_DoorAnalysis_Alltests.xlsx"
+    file_address = "C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/unprocessed_data/door_frame/Data_DoorAnalysis_Alltests.xlsx"
     
     # upload the raw data from the summary excel file
     DoorFrame[test_name] = pd.read_excel(file_address, sheet_name = test_name)

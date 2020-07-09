@@ -1,7 +1,6 @@
 """
 Functions used to calculate velocities mass flow at the door from pressure probes and temperature data
 
-
 """
 
 from scipy.signal import savgol_filter
@@ -118,14 +117,14 @@ def calculation_velocity(df, test_name, gamma = 0.94, omega_factor = 2.49, gems_
             df.loc[:, f"{column}_smooth"] = savgol_filter(df.loc[:, column],window_length, polyorder)
     
     # average those probes 0.4 from the ground
-    if test_name in ["Alpha2", "Beta2", "Gamma"]:
+    if test_name in ["Alpha1","Alpha2", "Beta2", "Gamma"]:
         df.loc[:, "PP_40"] = df.loc[:, ["P2.40_DeltaP_smooth", "P3.40_DeltaP_smooth", 
               "P4.40_DeltaP_smooth"]].mean(axis = 1)
     elif test_name in ["Beta1"]:
         df.loc[:, "PP_40"] = df.loc[:, ["P2.40_DeltaP_smooth", "P4.40_DeltaP_smooth"]].mean(axis = 1)
         
     # average probes 1.6 meters from the ground
-    if test_name in ["Alpha2"]:
+    if test_name in ["Alpha1","Alpha2"]:
         df.loc[:, "PP_160"] = df.loc[:, ["P12.160_DeltaP_smooth"]].mean(axis = 1)
     elif test_name in ["Beta1"]:
         df.loc[:, "PP_160"] = df.loc[:, ["P10.160_DeltaP_smooth"]].mean(axis = 1)

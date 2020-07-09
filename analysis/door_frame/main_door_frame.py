@@ -1,5 +1,5 @@
 """
-This code uploads analyses door frame data (pressure probes and temperatures) to calculate
+This code analyses door frame data (pressure probes and temperatures) to calculate
 mass flow, neutral plane height and internal HRR.
 
 """
@@ -23,12 +23,12 @@ HRR_internal_massin = {}
 HRR_internal_juanalyser = {}
 
 # upload the data from the excel spreadsheets
-file_address = f"C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/unprocessed_data/door_frame/DoorFrame_unprocessed.pkl"
+file_address = "C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/unprocessed_data/door_frame/DoorFrame_unprocessed.pkl"
 with open(file_address, "rb") as handle:
     DoorFrame = pickle.load(handle)
 
 # iterate over the four tests to be analysed
-for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
+for test_name in ["Alpha1","Alpha2", "Beta1", "Beta2", "Gamma"]:
     
     print(f"Analysing experiment {test_name}")
     
@@ -98,10 +98,11 @@ for i, data_type in enumerate(data_to_save):
         pickle.dump(data_type, handle)
     
 # Plotting of the raw data to evaluate the algorithm and identify any broken sensors
-test_name = ["Alpha2", 
-               "Beta1", 
-               "Beta2", 
-               "Gamma"]
+test_name = ["Alpha1",
+             "Alpha2", 
+              "Beta1", 
+              "Beta2", 
+              "Gamma"]
 y_labels = ["Temperature [$^\circ$C]",
             "Transducers [V]",
             "Transducers [V]",

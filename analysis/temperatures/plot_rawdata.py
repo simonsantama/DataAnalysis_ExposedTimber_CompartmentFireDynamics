@@ -1,13 +1,14 @@
 """
-Plot the (un-corrected) temperature data for all tests
+Plot the raw data for all tests.
 This script also uploads the data from the doorway and plots that with the other data.
-
 
 Saves the parsed data to a pickle.
 """
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import numpy as np
 import pickle
+import time
 
 # import data
 file_address = "Temperatures_Raw.pkl"
@@ -29,14 +30,17 @@ location_plot = {"TXX": (0,1),
                  "T12": (2,0), "T22": (2,1), "T32": (2,2),
                  "T11": (3,0), "T21": (3,1), "T31": (3,2)}
 
-colors = ["royalblue", "darkgreen", "firebrick", "blueviolet", "darkorange", "cyan", "black"]*3
+colors = cm.get_cmap('cividis', len(list_useful_cols))
 linestyles = ["-", "--", "-.", ":"]*3
 
 # plot
-for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
+for test_name in ["Alpha1","Alpha2", "Beta1", "Beta2", "Gamma"]:
+    start = time.time()
     
-    print(test_name)
+    print(f"Creating plot for {test_name}")
     data_dict = all_raw_data[test_name]
+#    if test_name not in ["Alpha1"]:
+#        data_door = door_temperatures[test_name]
     data_door = door_temperatures[test_name]
     
     fig, ax = plt.subplots(5,3,figsize = (11,11), sharex = True, sharey = True)
@@ -52,21 +56,21 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
     # format plots
     for j,axis in enumerate(ax.flatten()):
         axis.grid(True, color = "gainsboro", linestyle = "--", linewidth = 0.75)
-        axis.set_title(["","TXX_CentreWall","",
-                        "T13_LeftFar","T23_CentreFar","T33_RightFar",
-                        "T12_LeftMid","T22_CentreMid","T32_RightMid",
-                        "T11_LeftNear","T21_CentreNear","T31_RightNear",
+        axis.set_title(["","TXX_Centre_Wall","",
+                        "T13_Left_Far","T23_Centre_Far","T33_Right_Far",
+                        "T12_Left_Midle","T22_Centre_Midle","T32_Right_Midle",
+                        "T11_Left_Near","T21_Centre_Near","T31_Right_Near",
                         "", "TDD_Door", ""][j],
                        fontsize = 12)
     for axis in ax[:,0]:
         axis.set_ylabel("Temperature [$^\circ$C]", fontsize = 10)
-        axis.set_ylim([0,1400])
-        axis.set_yticks(np.linspace(0,1400,5))
+        axis.set_ylim([-75,1500])
+        axis.set_yticks(np.linspace(0,1500,6))
     for axis in [ax[3,0], ax[4,1], ax[3,2]]:
         axis.set_xlabel("Time [min]", fontsize = 10)
         axis.set_xlim([0,60])
         axis.set_xticks(np.linspace(0,60,5))
-    
+        
     # plot
     for logger in data_dict:
         df = data_dict[logger]
@@ -99,18 +103,19 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
                 else:
                     axis.plot(df.loc[mask, "testing_time"]/60,
                               df.loc[mask, column],
-                              color = colors[j],
+                              color = colors(j/len(list_useful_cols)),
                               linestyle = linestyles[j])
     
     # plot the door temperatures
     for j,column in enumerate(data_door):
         axis = ax[4,1]
+        mask = (data_door.loc[:,"testing_time"]/60 > 0) & (data_door.loc[:, "testing_time"]/60 < 60)
         if "testing_" in column:
             pass
         else:
             axis.plot(data_door.loc[mask, "testing_time"]/60,
               data_door.loc[mask, column],
-              color = colors[j],
+              color = colors(j/len(list_useful_cols)),
               linestyle = linestyles[j])
     
     # funny plot to add a legend in the first subplot
@@ -118,12 +123,14 @@ for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
         ax[0,0].plot([],
           [],
           linestyle = linestyles[j],
-          color = colors[j],
+          color = colors(j/len(list_useful_cols)),
           label = f"{np.linspace(40,260,12)[j]/100} m")
-        ax[0,0].legend(fancybox = True, loc = "center", fontsize = 8, title = "TC Height", ncol = 3)
+        ax[0,0].legend(fancybox = True, loc = "center", fontsize = 10, title = "TC Height", ncol = 3)
     
+    print(f" time taken: {np.round(time.time() - start,2)} seconds")
+
     # save and close
-    fig.savefig(f"raw_data/{test_name}_temperatures_raw.png", dpi = 300)
+    fig.savefig(f"raw_data/{test_name}_temperatures_raw.png", dpi = 600)
     plt.close(fig)
     
 
