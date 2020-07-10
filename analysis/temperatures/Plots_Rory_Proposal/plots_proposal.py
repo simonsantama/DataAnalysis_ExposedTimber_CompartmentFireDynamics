@@ -4,173 +4,259 @@ This script takes the data from Alpha2, Beta 1 and Gamma.
 Plots the data at a height of two meters for different tests
 """
 #import libraries
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib import cm
 import numpy as np
 import pickle
+from scipy import interpolate
 
 # import data
 file_address = "condensed_data.pickle"
 with open(file_address, "rb") as handle:
     all_condensed_data = pickle.load(handle)
 
+colors1 = cm.get_cmap("cividis", 7)
+line_styles = ["-", "--", "-.", ":"]*2
 
 # iterate over different experiments
-for experiment in all_condensed_data:
+for experiment_number, experiment in enumerate(all_condensed_data):
     temperatures = all_condensed_data[experiment]
     
     list_columns_at_desiredheight = []    
     for column in temperatures:
         if column != "testing_time":
             height = int(column.split("-")[1])
-            if height == 200:
-                list_colu
-#    
-#    print(f"Condensing data of {experiment} into a single data frame")
-#    all_condensed_data[experiment] = pd.DataFrame()
-#    new_time = np.linspace(0,3600,3601)
-#    all_condensed_data[experiment].loc[:,"testing_time"] = new_time
-#    
-#    # interpolate door data to 1 Hz frequency
-#    door_temperatures = door_data[experiment]
-#    for column in door_temperatures:
-#        if column != "testing_time":
-#            old_time = door_temperatures["testing_time"]
-#            old_temperature = door_temperatures[column]
-#            new_temperature = np.interp(new_time, old_time, old_temperature)
-#            
-#            # save the interpolated data in the condensed data frame
-#            new_column_name = "TD" + column.split("_")[1]
-#            all_condensed_data[experiment][new_column_name] = new_temperature
-#    
-#    # interpolate the compartment data to 1Hz frequency
-#    compartment_temperatures = all_raw_data[experiment]
-#    for logger in compartment_temperatures:
-#        for column in compartment_temperatures[logger]:
-#            if column != "testing_time":
-#                if "<" not in column:
-#                    old_time = compartment_temperatures[logger]["testing_time"]
-#                    old_temperature = compartment_temperatures[logger][column]
-#                    new_temperature = np.interp(new_time, old_time, old_temperature)
-#                    
-#                    # save the interpolated data in the condensed data frame
-#                    all_condensed_data[experiment][column] = new_temperature
-#    
-#
-#    
-#    break
-#
-##    
-##list_useful_cols = [f"T{x}" for x in [11,12,13,21,22,23,31,32,33,"XX"]]
-##all_useful_cols = {name:[] for name in list_useful_cols}
-##
-### plot location equivalence
-##location_plot = {"TXX": (0,1),
-##                 "T13": (1,0), "T23": (1,1), "T33": (1,2),
-##                 "T12": (2,0), "T22": (2,1), "T32": (2,2),
-##                 "T11": (3,0), "T21": (3,1), "T31": (3,2)}
-##
-##colors = cm.get_cmap('cividis', len(list_useful_cols))
-##linestyles = ["-", "--", "-.", ":"]*3
-##
-### plot
-##for test_name in ["Alpha1","Alpha2", "Beta1", "Beta2", "Gamma"]:
-##    start = time.time()
-##    
-##    print(f"Creating plot for {test_name}")
-##    data_dict = all_raw_data[test_name]
-###    if test_name not in ["Alpha1"]:
-###        data_door = door_temperatures[test_name]
-##    data_door = door_temperatures[test_name]
-##    
-##    fig, ax = plt.subplots(5,3,figsize = (11,11), sharex = True, sharey = True)
-##    fig.subplots_adjust(top = 0.9, left = 0.1, bottom = 0.1,
-##                        hspace = 0.20, wspace = 0.075)
-##    fig.suptitle(test_name, fontsize = 14)
-##    
-##    # remove the axis and frames from plots that are not part of the actual TC tree grid
-##    for axis in [ax[0,0], ax[0,2], ax[4,0], ax[4,2]]:
-##        axis.axis("off")
-##    
-##    
-##    # format plots
-##    for j,axis in enumerate(ax.flatten()):
-##        axis.grid(True, color = "gainsboro", linestyle = "--", linewidth = 0.75)
-##        axis.set_title(["","TXX_Centre_Wall","",
-##                        "T13_Left_Far","T23_Centre_Far","T33_Right_Far",
-##                        "T12_Left_Midle","T22_Centre_Midle","T32_Right_Midle",
-##                        "T11_Left_Near","T21_Centre_Near","T31_Right_Near",
-##                        "", "TDD_Door", ""][j],
-##                       fontsize = 12)
-##    for axis in ax[:,0]:
-##        axis.set_ylabel("Temperature [$^\circ$C]", fontsize = 10)
-##        axis.set_ylim([-75,1500])
-##        axis.set_yticks(np.linspace(0,1500,6))
-##    for axis in [ax[3,0], ax[4,1], ax[3,2]]:
-##        axis.set_xlabel("Time [min]", fontsize = 10)
-##        axis.set_xlim([0,60])
-##        axis.set_xticks(np.linspace(0,60,5))
-##        
-##    # plot
-##    for logger in data_dict:
-##        df = data_dict[logger]
-##        
-##        # getting rid of the columns with non-formatted names
-##        drop_columns = [col for col in df.columns if "<" in col]
-##        df.drop(columns = drop_columns, inplace = True)
-##        
-##        # iterate over the different TC trees
-##        for useful_col in list_useful_cols:
-##            
-##            # extract the name of hte TC tree
-##            TC_tree_name = useful_col.split("-")[0]
-##            location = location_plot[TC_tree_name]
-##            
-##            # create a list of columns that correspond to this TC tree
-##            TC_tree_columns = [x for x in df.columns[1:] if useful_col in x]
-##            TC_tree_columns.append("testing_time")
-##            
-##            # created reduced data frame
-##            df_reduced = df.loc[:, TC_tree_columns]
-##            
-##            # plot
-##            axis = ax[location[0], [location[1]]][0]
-##            mask = (df_reduced.loc[:, "testing_time"]/60 > 0) & (df_reduced.loc[:, "testing_time"]/60 < 60)
-##            
-##            for j,column in enumerate(df_reduced):
-##                if "testing_time" in column:
-##                    pass
-##                else:
-##                    axis.plot(df.loc[mask, "testing_time"]/60,
-##                              df.loc[mask, column],
-##                              color = colors(j/len(list_useful_cols)),
-##                              linestyle = linestyles[j])
-##    
-##    # plot the door temperatures
-##    for j,column in enumerate(data_door):
-##        axis = ax[4,1]
-##        mask = (data_door.loc[:,"testing_time"]/60 > 0) & (data_door.loc[:, "testing_time"]/60 < 60)
-##        if "testing_" in column:
-##            pass
-##        else:
-##            axis.plot(data_door.loc[mask, "testing_time"]/60,
-##              data_door.loc[mask, column],
-##              color = colors(j/len(list_useful_cols)),
-##              linestyle = linestyles[j])
-##    
-##    # funny plot to add a legend in the first subplot
-##    for j in range(12):
-##        ax[0,0].plot([],
-##          [],
-##          linestyle = linestyles[j],
-##          color = colors(j/len(list_useful_cols)),
-##          label = f"{np.linspace(40,260,12)[j]/100} m")
-##        ax[0,0].legend(fancybox = True, loc = "center", fontsize = 10, title = "TC Height", ncol = 3)
-##    
-##    print(f" time taken: {np.round(time.time() - start,2)} seconds")
-##
-##    # save and close
-##    fig.savefig(f"raw_data/{test_name}_temperatures_raw.png", dpi = 600)
-##    plt.close(fig)
-##    
-#
+            if height == 180:
+                list_columns_at_desiredheight.append(column)
+                
+    
+    # figure 1: just plot all the temperatures vs time
+    fig, ax = plt.subplots(1,1,figsize = (5,3.5), constrained_layout = True)
+    ax.set_xlabel("Time [$s$]", fontsize = 11)
+    ax.set_xlim([0,60])
+    ax.set_xticks(np.linspace(0,60,5))
+    ax.set_ylabel("Temperature [$^\circ$C]", fontsize = 11)
+    ax.set_ylim([0,1500])
+    ax.set_yticks(np.linspace(0,1500,6))
+    ax.grid(True, color = "gainsboro", linewidth = 0.5, linestyle = "--")
+    ax.set_title(f"Configuration {['Alpha', 'Beta', 'Gamma'][experiment_number]}.\nTest {[2,1,1][experiment_number]}. Height 1.8 m.", 
+                                  fontsize = 12)
+    
+
+    # inset to show location of the thermocouples
+    inset = inset_axes(ax, width="30%", height="30%", loc=["lower right", "upper right", "lower right"][experiment_number], 
+                       borderpad = 1)
+    inset.set_ylim([0,3])
+    inset.set_xlim([0,3])
+    inset.set_xticks([0,1,2,3])
+    inset.set_yticks([0,1,2,3])
+    inset.grid(True, linestyle = "--", linewidth = 0.4, color = "gainsboro")
+    inset.xaxis.set_ticklabels([])
+    inset.yaxis.set_ticklabels([])
+    inset.xaxis.set_ticks_position('none')
+    inset.yaxis.set_ticks_position('none')
+#    inset.xaxis.set_visible(False)
+#    inset.yaxis.set_visible(False)
+    
+    all_lines = []
+    all_locations = []
+    for column in list_columns_at_desiredheight:
+        location = column.split("-")[0]
+        # rename the locations to something that it is easier to read
+        if location == "T11":
+            text = "LN"
+            linecolor = colors1(0)
+            style = line_styles[0]
+            pos = (0.5,0.5)
+        elif location == "T13":
+            text = "LF"
+            linecolor = colors1(1/7)
+            style = line_styles[1]
+            pos = (0.5, 2.5)
+        elif location == "TD":
+            text = "D"
+            pos = (1.5,0.4)
+            linecolor = colors1(2/7)
+            style = line_styles[2]
+        elif location == "T22":
+            text = "C"
+            linecolor = colors1(3/7)
+            style = line_styles[3]
+            pos = (1.5,1.5)
+        elif location == "TXX":
+            text = "W"
+            linecolor = colors1(4/7)
+            style = line_styles[4]
+            pos = (1.5, 2.65)
+        elif location == "T31":
+            text = "RN"
+            linecolor = colors1(5/7)
+            style = line_styles[5]
+            pos = (2.5, 0.5)
+        elif location == "T33":
+            text = "RF"
+            linecolor = colors1(6/7)
+            style = line_styles[6]
+            pos = (2.5,2.5)
+        
+        all_locations.append(location)
+        
+        # plot temperature lines
+        ax.plot(temperatures.loc[:, "testing_time"]/60,
+                    temperatures.loc[:, column],
+                    linewidth = 1.25,
+                    color = linecolor,
+                    linestyle = style)
+        
+        # plot thermocouple locations
+        inset.scatter(pos[0],
+                      pos[1],
+                      marker = "o",
+                      color = linecolor,
+                      s = 12)
+        
+        
+        inset_text_x = [0.4,0.4,1.4,1.65,1.4,2.4,2.4,2.4]
+        inset_text_y = [0.75,2,0.65,1.5,2.2,0.75,2]
+        if experiment == "Alpha2":
+            # plot rectangles that indicate the location of the exposed timber
+            inset.fill_between([0,3],[2.8,2.8],[3,3], color = "wheat")
+            inset.fill_between([0,0.15],[0,0],[3,3], color = "wheat")
+            inset.fill_between([1.25,1.75], [0,0], [0.1,0.1], color = "maroon")
+            
+            legend_text = ["Left Near", "Left Far", "Door", "Centre", "Right Near", "Right Far"]
+            inset_text = ["LN", "LF", "D", "C", "RN", "RF"]
+            inset_text_x = [0.4,0.4,1.4,1.65,2.4,2.4]
+            inset_text_y = [0.75,2,0.65,1.5,0.75,2]
+        elif experiment == "Beta1":
+            inset.fill_between([0,3],[2.8,2.8],[3,3], color = "wheat")
+            inset.fill_between([1.25,1.75], [0,0], [0.1,0.1], color = "maroon")
+            
+            legend_text = ["Left Near", "Left Far", "Door", "Centre", "Wall", "Right Near", "Right Far"]
+            inset_text = ["LN", "LF", "D", "C", "W", "RN", "RF"]
+
+        elif experiment == "Gamma":
+            inset.fill_between([0,3],[2.8,2.8],[3,3], color = "wheat")
+            inset.fill_between([0,0.15],[0,0],[3,3], color = "wheat")
+            inset.fill_between([1.25,1.75], [0,0], [0.1,0.1], color = "maroon")
+            
+            legend_text = ["Left Near", "Left Far", "Door", "Centre", "Wall", "Right Near", "Right Far"]
+            inset_text = ["LN", "LF", "D", "C", "W", "RN", "RF"]
+
+    all_lines = []
+    for i, text in enumerate(legend_text):
+        l, = ax.plot([],[], color = colors1(i,7), linewidth = 1.25, linestyle = line_styles[i])
+        all_lines.append(l)
+        
+    for i, text in enumerate(inset_text):
+        inset.text(inset_text_x[i],
+                   inset_text_y[i],
+                   text,
+                   fontsize = 7)
+        
+    
+    ax.legend(all_lines, legend_text, fancybox = True, loc = [(0.1,0.05), "center right",
+                                                              (0.1,0.05)][experiment_number], fontsize = 7,
+              ncol = 2)
+    
+    plt.savefig(f"{experiment}.png", dpi = 900)
+    plt.close()
+    
+    
+    # contour plot to show the variation in space at a given time
+    if experiment == "Beta1":
+        continue
+    else:
+        # create plot
+        fig, ax = plt.subplots(1,1,figsize = (5,3.5))
+        ax.tick_params(axis='both', which='major', labelsize=8)
+        ax.set_xlabel("Width [$m$]", fontsize = 11)
+        ax.set_ylabel("Length [$m$]", fontsize = 11)
+        ax.set_title(f"Configuration {['Alpha', '','Gamma'][experiment_number]}. Test {[2,0,1][experiment_number]}" +\
+                                      "\nHeight 1.8 m. Time: 10 min", fontsize = 12)
+        ax.set_xlim([0,2.72])
+        ax.set_ylim([0,2.72])
+        
+        # plot the locations of the thermocouples
+        positions = [(0.25,0.25),(0.25,2.47),(1.36,0.1),(1.36,1.36),(1.36,2.62),(2.47,0.25),(2.47,2.47)]
+        for i,pos in enumerate(positions):
+            if (experiment == "Alpha2") and (i == 4):
+                continue
+            elif (experiment == "Gamma") and (i == 5):
+                continue
+            ax.scatter(pos[0],
+                          pos[1],
+                          marker = "o",
+                          color = "maroon",
+                          alpha = 0.65,
+                          s = 10, 
+                          zorder = 2)
+        
+        # define x and y for 2D interpolation
+        x,y = list(zip(*positions))
+        temperatures_givenheight = np.zeros(6)
+        if experiment == "Alpha2":
+            x = x[0:4] + x[5:]
+            y = y[0:4] + y[5:]
+        if experiment == "Gamma":
+            x = x[0:5] + x[6:]
+            y = y[0:5] + y[6:]
+
+        # quick and dirty implementation to extract the temperature (z) data for 2D interpolation
+        for column in list_columns_at_desiredheight:
+            location = column.split("-")[0]
+            if location == "T11":
+                temperatures_givenheight[0] = temperatures.loc[600, column]
+            elif location == "T13":
+                temperatures_givenheight[1] = temperatures.loc[600, column]
+            elif location == "TD":
+                temperatures_givenheight[2] = temperatures.loc[600, column]
+            elif location == "T22":
+                temperatures_givenheight[3] = temperatures.loc[600, column]
+                
+            # alpha2 has no wall temperatures
+            if experiment == "Alpha2":
+                if location == "T31":
+                    temperatures_givenheight[4] = temperatures.loc[600, column]
+                elif location == "T33":
+                    temperatures_givenheight[5] = temperatures.loc[600, column]
+                    
+            elif experiment == "Gamma":
+                if location == "TXX":
+                    temperatures_givenheight[4] = temperatures.loc[600, column]
+                elif location == "T33":
+                    temperatures_givenheight[5] = temperatures.loc[600, column]            
+
+        # interpolate
+        f = interpolate.interp2d(x,y,temperatures_givenheight)
+        
+        # define new x and y and apply the interpolated function to it
+        x_new = np.linspace(0,2.72,100)
+        y_new = np.linspace(0,2.72,100)
+        xx, yy = np.meshgrid(x,y)
+        new_temperatures = f(x_new, y_new)
+        
+        # contour plots
+        norm = mpl.colors.Normalize(vmin = 800, vmax = 1100)
+        cf = ax.contourf(x_new, y_new, new_temperatures, levels = 10, cmap = "cividis", vmin = 800, vmax = 1100)
+        fig.subplots_adjust(right=0.85)
+        
+        
+        cb_ax = fig.add_axes([0.86, 0.12, 0.04, 0.76])
+        cbar = mpl.colorbar.ColorbarBase(cb_ax, cmap = mpl.cm.cividis, norm = norm, ticks = [800,900,1000,1100])
+        cbar.set_label("Temperature [$^\circ$C]", fontsize = 8)
+        cbar.ax.tick_params(labelsize=7)
+        
+        # plot location of timber and door
+        ax.fill_between([0,2.72],[2.65,2.65], [2.72,2.72], facecolor = "wheat", alpha = 0.9)
+        ax.fill_between([0,0.04],[0,0], [2.65,2.65], facecolor = "wheat", alpha = 0.9)
+        ax.fill_between([1.2,1.52],[0,0], [0.05,0.05], color = "black", alpha = 0.8)
+        
+        plt.savefig(f"Contour_{experiment}.10min.png", dpi = 900)
+        
+        
+    
+        
+    
