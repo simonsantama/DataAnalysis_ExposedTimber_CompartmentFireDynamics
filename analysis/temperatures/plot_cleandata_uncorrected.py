@@ -6,6 +6,7 @@ Doesn't correct for radiation.
 """
 
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import numpy as np
 import pickle
 import pandas as pd
@@ -20,28 +21,27 @@ with open(file_address, "rb") as handle:
 file_address = "C:/Users/s1475174/Documents/Python_Projects/BRE_Paper_2016/processed_data/Door_Temperatures.pkl"
 with open(file_address, "rb") as handle:
     door_temperatures = pickle.load(handle)
-#
-#list_useful_cols = [f"T{x}" for x in [11,12,13,21,22,23,31,32,33,"XX", "DD"]]
-#all_useful_cols = {name:[] for name in list_useful_cols}
-#
-## plot location equivalence
-#location_plot = {"TXX": (0,1),
-#                 "T13": (1,0), "T23": (1,1), "T33": (1,2),
-#                 "T12": (2,0), "T22": (2,1), "T32": (2,2),
-#                 "T11": (3,0), "T21": (3,1), "T31": (3,2),
-#                 "TDD": (4,1)}
-#
-#colors = ["royalblue", "darkgreen", "firebrick", "blueviolet", "darkorange", "cyan", "black"]*3
-#linestyles = ["-", "--", "-.", ":"]*4
-#
-#processed_data = {}
-#
-## plot
-#for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
-#    
-#    print(test_name)
-#    data_dict = all_raw_data[test_name]
-#    data_door = door_temperatures[test_name]
+
+list_useful_cols = [f"T{x}" for x in [11,12,13,21,22,23,31,32,33,"XX", "DD"]]
+all_useful_cols = {name:[] for name in list_useful_cols}
+
+# plot location equivalence
+location_plot = {"TXX": (0,1),
+                 "T13": (1,0), "T23": (1,1), "T33": (1,2),
+                 "T12": (2,0), "T22": (2,1), "T32": (2,2),
+                 "T11": (3,0), "T21": (3,1), "T31": (3,2),
+                 "TDD": (4,1)}
+colors = cm.get_cmap('cividis', len(list_useful_cols))
+linestyles = ["-", "--", "-.", ":"]*3
+
+processed_data = {}
+
+# plot
+for test_name in ["Alpha2", "Beta1", "Beta2", "Gamma"]:
+    
+    print(test_name)
+    data_dict = all_raw_data[test_name]
+    data_door = door_temperatures[test_name]
 #    
 #    condensed_data = pd.DataFrame()
 #    condensed_data["testing_time"] = np.linspace(0,3600,3601)
